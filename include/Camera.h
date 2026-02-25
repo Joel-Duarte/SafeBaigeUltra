@@ -1,21 +1,22 @@
-#ifndef CAMERA
-#define CAMERA
+#ifndef CAMERA_H
+#define CAMERA_H
 #include "esp_camera.h"
+#include <Arduino.h>
 
-//CAMERA_MODEL_ESP32S3_EYE
+// CAMERA_MODEL_ESP32S3_EYE
 #define PWDN_GPIO_NUM  -1
 #define RESET_GPIO_NUM -1
 #define XCLK_GPIO_NUM  15
 #define SIOD_GPIO_NUM  4
 #define SIOC_GPIO_NUM  5
-#define Y2_GPIO_NUM 11
-#define Y3_GPIO_NUM 9
-#define Y4_GPIO_NUM 8
-#define Y5_GPIO_NUM 10
-#define Y6_GPIO_NUM 12
-#define Y7_GPIO_NUM 18
-#define Y8_GPIO_NUM 17
-#define Y9_GPIO_NUM 16
+#define Y2_GPIO_NUM    11
+#define Y3_GPIO_NUM    9
+#define Y4_GPIO_NUM    8
+#define Y5_GPIO_NUM    10
+#define Y6_GPIO_NUM    12
+#define Y7_GPIO_NUM    18
+#define Y8_GPIO_NUM    17
+#define Y9_GPIO_NUM    16
 #define VSYNC_GPIO_NUM 6
 #define HREF_GPIO_NUM  7
 #define PCLK_GPIO_NUM  13
@@ -50,33 +51,56 @@ private:
         .fb_location = CAMERA_FB_IN_PSRAM,
         .grab_mode = CAMERA_GRAB_LATEST,
     };
+
 public:
     Camera(){}
 
     String init() {
         esp_err_t err = esp_camera_init(&camera_config);
         if (err != ESP_OK) {
-            Serial.printf("Camera init failed: 0x%x", err);
+            Serial.printf("Camera init failed: 0x%x\n", err);
             return "CAMERA: ERROR";
         }
+
         sensor_t *s = esp_camera_sensor_get();
+        // Specific optimizations for the OV3660 if detected
         if (s->id.PID == OV3660_PID) {
             s->set_vflip(s, 1);        
             s->set_brightness(s, 1);   
             s->set_saturation(s, -2); 
         }
         
-        if (camera_config.pixel_format == PIXFORMAT_JPEG) {
-            s->set_framesize(s, FRAMESIZE_VGA);
-        }
-
-        // Reduce Motion Blur (Crucial for moving cars)
+        // Default to VGA for smooth streaming performance
+        s->set_framesize(s, FRAMESIZE_VGA);
         s->set_quality(s, 10);     
-        s->set_gain_ctrl(s, 1);     // Auto gain on
-        s->set_exposure_ctrl(s, 1); // Auto exposure on
+        s->set_gain_ctrl(s, 1);     
+        s->set_exposure_ctrl(s, 1); 
         s->set_hmirror(s, 0);
         
         return "OK";
+    }
+
+    // --- Control Panel Helpers ---
+
+    void toggleFlip() {
+        sensor_t * s = esp_camera_sensor_get();
+        if (s) s->set_vflip(s, !s->status.vflip);
+    }
+
+    void toggleMirror() {
+        sensor_t * s = esp_camera_sensor_get();
+        if (s) s->set_hmirror(s, !s->status.hmirror);
+    }
+
+    void setBrightness(int val) {
+        // Range: -2 to 2
+        sensor_t * s = esp_camera_sensor_get();
+        if (s) s->set_brightness(s, val);
+    }
+
+    void setResolution(framesize_t size) {
+        sensor_t * s = esp_camera_sensor_get();
+        if (s) s->set_framesize(s, size);
     }
 };
 

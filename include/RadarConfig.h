@@ -6,14 +6,16 @@
 class RadarConfig {
 public:
     static void sendDefaults(HardwareSerial &ser, uint8_t maxDist, uint8_t direction, uint8_t minSpeed, uint8_t delayTime, uint8_t triggerTimes, uint8_t snrLimit) {
-        // Enable Configuration (Command 0x00FF)
-        // Must be sent before any other configuration
+        
+        // 1. Enable Configuration (Command 0x00FF)
+        // Payload: 0x01 0x00 (Enable)
         uint8_t enableCmd[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x04, 0x00, 0xFF, 0x00, 0x01, 0x00, 0x04, 0x03, 0x02, 0x01};
         ser.write(enableCmd, sizeof(enableCmd));
+        ser.flush();
         delay(100); 
 
-        // Set Detection Parameters (Command 0x0002)
-        // Payload: [Max Dist (0x0A-0xFF)] [Direction (0-2)] [Min Speed (0-0x78)] [Delay (0-0xFF)] 
+        // 2. Set Detection Parameters (Command 0x0002)
+        // Length 0x06: 2 bytes Cmd + 4 bytes Payload
         uint8_t paramCmd[] = {
             0xFD, 0xFC, 0xFB, 0xFA, 
             0x06, 0x00,             
@@ -25,27 +27,38 @@ public:
             0x04, 0x03, 0x02, 0x01  
         };
         ser.write(paramCmd, sizeof(paramCmd));
+        ser.flush();
         delay(100);
 
-        // Set Sensitivity & Cumulative Targeting (Command 0x0003)
-        // Payload: [Trigger Times (1-10)] [SNR Threshold (0-64)] [0x00] [0x00] 
+        // 3. Set Sensitivity & Trigger Logic (Command 0x0003)
+        // Payload: [Trigger Times] [SNR Threshold] [Reserved 0x00] [Reserved 0x00]
         uint8_t senseCmd[] = {
             0xFD, 0xFC, 0xFB, 0xFA,
             0x06, 0x00,
             0x03, 0x00,             
-            triggerTimes,           // Cumulative effective trigger times (1-0x0A) 
-            snrLimit,               // SNR threshold 
+            triggerTimes,           
+            snrLimit,               
             0x00, 0x00,             
             0x04, 0x03, 0x02, 0x01
         };
         ser.write(senseCmd, sizeof(senseCmd));
+        ser.flush();
         delay(100);
 
-        // End Configuration (Command 0x00FE)
-        // Resumes normal radar working mode
+        // 4. End Configuration (Command 0x00FE)
+        // Length 0x02: 2 bytes Cmd + 0 bytes Payload
         uint8_t endCmd[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0xFE, 0x00, 0x04, 0x03, 0x02, 0x01};
         ser.write(endCmd, sizeof(endCmd));
-        delay(100);
+        ser.flush();
+        delay(200); // Give it extra time to resume reporting
+    }
+
+    static void softReset(HardwareSerial &ser) {
+        // Restart Module (Command 0x00A2)
+        uint8_t resetCmd[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x02, 0x00, 0xA2, 0x00, 0x04, 0x03, 0x02, 0x01};
+        ser.write(resetCmd, sizeof(resetCmd));
+        ser.flush();
+        delay(500);
     }
 };
 

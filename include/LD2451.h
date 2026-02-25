@@ -5,47 +5,34 @@
 #include <vector>
 #include "LD2451_Defines.h"
 
-// --- Hardware Configuration Variables ---
-static int RADAR_RX_PIN = 1;      // ESP RX (Connected to Radar TX)
-static int RADAR_TX_PIN = 2;      // ESP TX (Connected to Radar RX)
-static long RADAR_BAUD  = 115200; // Default factory baud rate
+// Global variables defined in main.cpp for the webhook
+extern uint8_t rawDebugBuffer[64];
+extern int rawDebugLen;
+extern bool debugMode;
 
 class LD2451 {
 public:
-    // Pass the serial peripheral you want to use (e.g., Serial1 or Serial2)
-    LD2451(HardwareSerial& serial);
+    // Uses the clean pins confirmed safe from camera interference
+    LD2451(HardwareSerial& serial) : 
+        _radarSerial(serial), 
+        _rxPin(21), 
+        _txPin(47), 
+        _baud(115200) {}
 
-    // Initialization using the variables defined above
     void begin();
-    
-    // Main processing loop - call this in your main loop()
-    void update();
+    int update(RadarTarget* targets, int maxTargets);
 
-    // --- Configuration Methods (For WebSocket POST commands) ---
-    // These methods handle the "Enable Config -> Command -> End Config" sequence
-    bool setDetectionRange(uint8_t maxMeters);
-    bool setSensitivity(uint8_t snrThreshold);
-    bool setDirectionFilter(uint8_t mode); // 0: Away, 1: Approach, 2: Both
-    bool applySystemRestart();
-
-    // --- Data Accessors (For Screen & Passing Logic) ---
-    bool isVehicleDetected() const { return _targetDetected; }
-    const std::vector<RadarTarget>& getTargets() const { return _targets; }
-    
-    // Logic helper: returns true if any car is currently approaching at high speed
-    bool hasApproachingThreat(uint8_t speedThreshold) const;
+    // Configuration wrappers
+    bool configure(uint8_t maxDist, uint8_t dir, uint8_t minSpd, uint8_t trigger, uint8_t snr);
+    bool restart();
 
 private:
     HardwareSerial& _radarSerial;
-    std::vector<RadarTarget> _targets;
-    bool _targetDetected = false;
-    uint8_t _rawBuffer[64];
-    
-    // Protocol handling
-    void _parseIncomingByte(uint8_t byte);
-    void _processDataFrame(uint8_t* data, size_t len);
-    void _sendProtocolCmd(LD2451_Cmd cmd, const uint8_t* data, uint16_t len);
-    bool _enterConfigMode(bool enable);
+    int _rxPin;
+    int _txPin;
+    long _baud;
+
+    void _sendCmd(LD2451_Cmd cmd, const uint8_t* data, uint16_t len);
 };
 
 #endif

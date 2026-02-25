@@ -8,8 +8,9 @@
 extern bool yoloVetoActive;
 extern int globalTargetCount;
 extern RadarTarget activeTargets[];
-
-// References to the config variables in main.cpp
+extern bool debugMode;
+extern int rawDebugLen;
+extern uint8_t rawDebugBuffer[];
 extern uint8_t cfg_max_dist;
 extern uint8_t cfg_min_speed;
 extern uint8_t cfg_direction;
@@ -60,6 +61,30 @@ public:
             }
             json += "]}";
             request->send(200, "application/json", json);
+        });
+        
+        _server.on("/debug", HTTP_GET, [](AsyncWebServerRequest *request){
+            if (!debugMode) {
+                request->send(403, "text/plain", "Debug mode is disabled.");
+                return;
+            }
+
+            String output = "SAFEBAIGE OS - RADAR DEBUG SPEW\n";
+            output += "--------------------------------\n";
+            output += "Raw Hex: ";
+            if (rawDebugLen == 0) {
+                output += "No frame captured yet.";
+            } else {
+                for (int i = 0; i < rawDebugLen; i++) {
+                    char hex[4];
+                    sprintf(hex, "%02X ", rawDebugBuffer[i]);
+                    output += hex;
+                }
+            }
+            output += "\n\nLast Target Count: " + String(globalTargetCount);
+            output += "\nMax Config Dist: " + String(cfg_max_dist) + "m";
+            
+            request->send(200, "text/plain", output);
         });
 
         _server.begin();

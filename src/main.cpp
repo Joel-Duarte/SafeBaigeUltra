@@ -11,12 +11,12 @@
 #include "RadarConfig.h"
 
 // --- Radar Default Settings ---
-uint8_t cfg_max_dist    = 80; //  1-100 (10 as min is recommended) meters
+uint8_t cfg_max_dist    = 10; //  1-100 (10 as min is recommended) meters
 uint8_t cfg_direction   = 1;   // 0: Away, 1: Approach, 2: Both 
-uint8_t cfg_min_speed   = 5;   //min speed to detect ()
+uint8_t cfg_min_speed   = 0;   //min speed to detect ()
 uint8_t cfg_delay_time  = 0;   // 0 or 1 since safebaige has persistence timeout
-uint8_t cfg_trigger_acc = 3;   //Required consecutive detections before reporting
-uint8_t cfg_snr_limit   = 4;   //0 - 255 4 is the default / use 6–10: If radar is giving "ghost" detections
+uint8_t cfg_trigger_acc = 1;   // 3/4 Required consecutive detections before reporting
+uint8_t cfg_snr_limit   = 0;   //0 - 255 4 is the default / use 6–10: If radar is giving "ghost" detections
 
 // --- Hardware & System Configuration ---
 const int RADAR_TX_PIN = 1; 
@@ -33,6 +33,7 @@ uint8_t cfg_rapid_threshold = 15;
 uint32_t cfg_linger_threshold_ms = 3000; 
 unsigned long carFirstDetectedTime = 0;
 bool lingerAlertSent = false;
+bool radarUpdatePending = false;
 
 // --- Module Instances ---
 NetworkManager network;
@@ -77,13 +78,19 @@ void setup() {
     } else {
         ui.updateMessage("MDNS:ERR", ST77XX_RED);
     }
-    
     lastValidRadarTime = millis();
 }
 
 void loop() {
+    
     // 1. Try to parse incoming Radar data
     int newTargets = RadarParser::parse(Serial1, activeTargets, 5, rawDebugBuffer, &rawDebugLen);
+
+    if (radarUpdatePending) {
+        radarUpdatePending = false;
+        applyRadarSettings();
+        ui.drawBackground();
+    }
 
     if (newTargets > 0) {
         // --- Linger Logic ---
@@ -126,6 +133,5 @@ void loop() {
         }
     }
     
-    // Tiny delay to keep the ESP32-S3 Watchdog happy
     delay(5);
 }

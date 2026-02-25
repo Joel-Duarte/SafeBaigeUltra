@@ -34,8 +34,11 @@ private:
 
         for (int m = step; m <= cfg_max_dist; m += step) {
             // Map meters to Y position (cfg_max_dist is far, 0 is near)
-            int y = map(m, cfg_max_dist, 0, roadTopY, roadBottomY);
-            
+            //int y = map(m, cfg_max_dist, 0, roadTopY, roadBottomY);
+            float normalized = m / (float)cfg_max_dist;
+            float curved = pow(normalized, 1.6);
+
+            int y = roadTopY + (roadBottomY - roadTopY) * (1.0f - curved);
             // Draw a faint dashed line for the distance marker
             for(int x = 30; x < 100; x += 10) {
                 _display.drawFastHLine(x, y, 4, 0x2104); 
@@ -50,8 +53,11 @@ private:
     void drawRoad() {
         // Perspective Road Lines
         // Far point (narrow) to Near point (wide)
-        _display.drawLine(centerX - 15, roadTopY, centerX - 50, roadBottomY, 0x528A); 
-        _display.drawLine(centerX + 15, roadTopY, centerX + 50, roadBottomY, 0x528A); 
+        int topWidth = map(cfg_max_dist, 10, 100, 20, 10);
+        int bottomWidth = 50;
+
+        _display.drawLine(centerX - topWidth, roadTopY, centerX - bottomWidth, roadBottomY, 0x528A);
+        _display.drawLine(centerX + topWidth, roadTopY, centerX + bottomWidth, roadBottomY, 0x528A);
     }
 
 public:
@@ -66,6 +72,7 @@ public:
         _display.initR(INITR_BLACKTAB); 
         _display.setRotation(0); // Vertical orientation
         drawStaticUI();
+        drawBackground(); 
     }
 
     void drawStaticUI() {
@@ -89,11 +96,21 @@ public:
         _display.print(msg); 
     }
 
-    void render(int count, RadarTarget *targets) {
+    void drawBackground() {
         _display.fillRect(0, 0, 128, footerTopY, ST77XX_BLACK);
-        
         drawRoad();
         drawScale();
+    }
+    void clearCars() {
+        // Clear only dynamic region
+        _display.fillRect(0, roadTopY, 128, roadBottomY - roadTopY, ST77XX_BLACK);
+
+        // Redraw static background lines only in road area
+        drawRoad();
+        drawScale();
+    }
+    void render(int count, RadarTarget *targets) {
+        clearCars();
 
         if (count <= 0 || targets == nullptr) return;
 
@@ -106,8 +123,11 @@ public:
             float d = targets[i].smoothedDist;
             if (d > cfg_max_dist) d = cfg_max_dist;
             
-            int y_pos = map((float)d, (float)cfg_max_dist, 0.0f, (float)roadTopY, (float)roadBottomY);
+            //int y_pos = map((float)d, (float)cfg_max_dist, 0.0f, (float)roadTopY, (float)roadBottomY);
+            float normalized = d / (float)cfg_max_dist;     // 0.0 → 1.0
+            float curved = pow(normalized, 1.6);            // depth curve (1.4–2.2 works well)
 
+            int y_pos = roadTopY + (roadBottomY - roadTopY) * (1.0f - curved);
             // Perspective Scaling
             int carWidth = map(y_pos, roadTopY, roadBottomY, 6, 22);
             int carHeight = carWidth / 1.5;

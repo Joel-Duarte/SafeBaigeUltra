@@ -11,8 +11,8 @@
 #define TFT_RST    41
 #define TFT_CS     42
 
-// Access the global configuration from main.cpp
 extern uint8_t cfg_max_dist;
+extern uint8_t cfg_rapid_threshold;
 
 class DisplayModule {
 private:
@@ -90,8 +90,6 @@ public:
     }
 
     void render(int count, RadarTarget *targets) {
-        // 1. Clear ONLY the road area to prevent flicker and wipe old artifacts
-        // We clear all the way to footerTopY to ensure no "ghost cars" remain
         _display.fillRect(0, 0, 128, footerTopY, ST77XX_BLACK);
         
         drawRoad();
@@ -114,20 +112,19 @@ public:
             int carWidth = map(y_pos, roadTopY, roadBottomY, 6, 22);
             int carHeight = carWidth / 1.5;
 
-            // --- THE FIX: ARTIFACT PREVENTION ---
-            // Ensure the car body never crosses into the footer (footerTopY = 134)
-            // We check the bottom edge of the car (y_pos + carHeight/2)
             if (y_pos + (carHeight / 2) >= footerTopY) {
                 y_pos = footerTopY - (carHeight / 2) - 1; 
             }
             
-            // Final safety clamp for the top boundary
+
             if (y_pos - (carHeight / 2) < roadTopY) {
                 y_pos = roadTopY + (carHeight / 2);
             }
 
             uint16_t color = targets[i].approaching ? ST77XX_RED : ST77XX_GREEN;
-
+            if (targets[i].approaching && targets[i].speed > cfg_rapid_threshold) {
+                color = ST77XX_RED; // Rapid Approach alert
+            }    
             // Draw the car body
             _display.fillRoundRect(x_pos - (carWidth/2), y_pos - (carHeight/2), carWidth, carHeight, 3, color);
             

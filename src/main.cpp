@@ -29,6 +29,10 @@ int rawDebugLen = 0;
 bool debugMode = true;
 int globalTargetCount = 0;
 bool yoloVetoActive = false;
+uint8_t cfg_rapid_threshold = 15;     
+uint32_t cfg_linger_threshold_ms = 3000; 
+unsigned long carFirstDetectedTime = 0;
+bool lingerAlertSent = false;
 
 // --- Module Instances ---
 NetworkManager network;
@@ -82,9 +86,18 @@ void loop() {
     int newTargets = RadarParser::parse(Serial1, activeTargets, 5, rawDebugBuffer, &rawDebugLen);
 
     if (newTargets > 0) {
+        // --- Linger Logic ---
+        if (carFirstDetectedTime == 0) carFirstDetectedTime = millis();
+        
+        uint32_t elapsed = millis() - carFirstDetectedTime;
+        if (elapsed > cfg_linger_threshold_ms && !lingerAlertSent) {
+            Serial.println("ALERT: Car lingering detected!"); 
+            // Trigger your webhook here
+            lingerAlertSent = true;
+        }
+
         globalTargetCount = newTargets;
         lastValidRadarTime = millis();
-        
         // Update smoothing filters and render UI
         for (int i = 0; i < newTargets; i++) {
             activeTargets[i].smoothedDist = distFilter.smooth(i, (float)activeTargets[i].distance);
@@ -106,6 +119,9 @@ void loop() {
                 globalTargetCount = 0;
                 for (int i = 0; i < 5; i++) distFilter.reset(i);
                 ui.render(0, nullptr); 
+            } else {
+                carFirstDetectedTime = 0;
+                lingerAlertSent = false;
             }
         }
     }

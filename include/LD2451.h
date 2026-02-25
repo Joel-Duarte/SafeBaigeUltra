@@ -14,7 +14,6 @@ extern bool debugMode;
 
 class LD2451 {
 public:
-    // Constructor now uses the global variables directly
     LD2451(HardwareSerial& serial) : 
         _radarSerial(serial), 
         _baud(115200) {}

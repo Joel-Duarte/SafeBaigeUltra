@@ -14,7 +14,7 @@ enum LD2451_Cmd : uint16_t {
     CMD_ENABLE_CONFIG  = 0x00FF, // Value: 0x0001 to enable 
     CMD_END_CONFIG     = 0x00FE, // Resume work mode 
     CMD_SET_PARAMS     = 0x0002, // Max dist, direction, min speed, delay 
-    CMD_READ_PARAMS    = 0x0012, // [cite: 23]
+    CMD_READ_PARAMS    = 0x0012, // 
     CMD_SET_SENSITIVE  = 0x0003, // Trigger count, SNR threshold
     CMD_BAUD_RATE      = 0x00A1, // 1-8 index 
     CMD_RESTART        = 0x00A2  // 
@@ -28,11 +28,12 @@ enum LD2451_Direction : uint8_t {
 };
 
 struct RadarTarget {
-    int8_t angle;       // Actual angle = Report - 0x80 
-    uint8_t distance;   // Unit: m 
-    uint8_t direction;  // 00: Close, 01: Far 
-    uint8_t speed;      // Unit: km/h 
-    uint8_t snr;        // 0~255 
+    uint8_t angle;       // Raw 0-255 (128 = 0°)
+    uint8_t distance;    // Meters (raw from radar)
+    float   smoothedDist;// Filtered distance for display
+    bool    approaching; // True if moving toward sensor
+    uint8_t speed;       // km/h
+    uint8_t snr;         // Signal Quality
 };
 
 #endif

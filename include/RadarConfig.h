@@ -3,8 +3,8 @@
 
 #include <Arduino.h>
 
-const int RAD_RX = 1;
-const int RAD_TX = 2;
+const int RAD_RX = 2;
+const int RAD_TX = 1;
 
 // Traffic Side Logic
 enum TrafficSide { LEFT_HAND_DRIVE, RIGHT_HAND_DRIVE };

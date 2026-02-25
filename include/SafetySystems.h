@@ -1,0 +1,45 @@
+#ifndef SAFETY_SYSTEMS_H
+#define SAFETY_SYSTEMS_H
+
+#include "RadarConfig.h"
+
+class SafetySystems {
+private:
+    unsigned long _camOffTime = 0;
+    const unsigned long _holdTime = 1500; // 5s recording buffer
+    const uint8_t _triggerDist = 50;      // 50m YOLO Activation Threshold
+    bool _isCamOn = false;
+
+public:
+    void init() {
+        
+    }
+
+    bool isRecording() { 
+        return _isCamOn; 
+    }
+
+    void update(bool carDetected, uint8_t closestDist, bool yoloVeto) {
+        
+        // Trigger if Radar sees a car within 50m AND YOLO has NOT vetoed it
+        if (carDetected && closestDist <= _triggerDist && !yoloVeto) {
+            _isCamOn = true;
+            _camOffTime = millis() + _holdTime;
+        } 
+        
+        bool timeoutExpired = (millis() > _camOffTime);
+        bool outOfZone = (!carDetected || closestDist > _triggerDist);
+
+        if (_isCamOn && (yoloVeto || (timeoutExpired && outOfZone))) {
+            _isCamOn = false;
+            
+            if (yoloVeto) {
+                Serial.println("SYS: Veto Received - Killing Alert");
+            } else {
+                Serial.println("SYS: Camera/Light Standby (Timeout)");
+            }
+        }
+    }
+};
+
+#endif

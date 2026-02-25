@@ -53,7 +53,7 @@ private:
 public:
     Camera(){}
 
-    String initCamera() {
+    String init() {
         esp_err_t err = esp_camera_init(&camera_config);
         if (err != ESP_OK) {
             Serial.printf("Camera init failed: 0x%x", err);
@@ -76,7 +76,7 @@ public:
         s->set_exposure_ctrl(s, 1); // Auto exposure on
         s->set_hmirror(s, 0);
         
-        return "CAMERA: OK";
+        return "OK";
     }
 };
 

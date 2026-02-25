@@ -1,8 +1,11 @@
 #include "StreamServer.h"
 #include "esp_http_server.h"
 #include "esp_camera.h"
+#include "DisplayModule.h"
 #include <Arduino.h>
+#include <Adafruit_ST7735.h>
 
+extern DisplayModule ui;
 // Standard MJPEG headers
 #define PART_BOUNDARY "123456789000000000000987654321"
 static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
@@ -16,12 +19,12 @@ static esp_err_t stream_handler(httpd_req_t *req) {
 
     res = httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
     if(res != ESP_OK) return res;
-    display.updateMessage("STREAM: ACTIVE", ST77XX_CYAN);
+    ui.updateMessage("STREAM: ACTIVE", ST77XX_CYAN);
     while(true) {
         fb = esp_camera_fb_get();
         if (!fb) {
             Serial.println("Camera capture failed");
-            display.updateMessage("STREAM: ERROR", ST77XX_RED);
+            ui.updateMessage("STREAM: ERROR", ST77XX_RED);
             res = ESP_FAIL;
         } else {
             // Send headers
@@ -39,7 +42,7 @@ static esp_err_t stream_handler(httpd_req_t *req) {
         }
 
         if(res != ESP_OK) {
-            display.updateMessage("STREAM: CLOSED", ST77XX_ORANGE);
+            ui.updateMessage("STREAM: CLOSED", ST77XX_ORANGE);
             break;
         }
         // Allow other background tasks (like WiFi) to run

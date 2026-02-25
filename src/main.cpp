@@ -5,57 +5,48 @@
 #include "StreamServer.h"
 #include "DisplayModule.h"
 
-//#include "../include/RadarConfig.h"
-//#include "../include/RadarParser.h"
-//#include "../include/SafetySystems.h"
-//#include "../include/NetworkManager.h"
-//#include "../include/FilterModule.h" 
-
-//SignalFilter radarFilter;
-
-
-//RadarTarget activeTargets[5];
-//SafetySystems safety;
 DisplayModule ui;
-//NetworkManager network;
-//volatile int globalTargetCount = 0;
-//unsigned long lastValidRadarTime = 0;
-//const int DATA_PERSIST_MS = 250;
-//bool yoloVetoActive = false;
-//volatile float lastVetoDistance = 0.0f;
-//bool pendingConfigChange = false;
-//uint8_t nextRange, nextDir, nextMinSpd, nextSens;
-//
-//TrafficSide currentTrafficSide = RIGHT_HAND_DRIVE;
-
-
-//unsigned long lastCarSeenTime = 0;
-//const int CLEAR_TIMEOUT = 500;
-//bool alreadyClear = false;
 Camera myCam;
 
 void setup() {
     Serial.begin(115200);
-    //Serial2.begin(115200, SERIAL_8N1, RAD_RX, RAD_TX);
-    myCam.init();
-    //safety.init();
-    ui.init();
-    //network.init();
+
+    // 1. Initialize Display FIRST so we can see status
+    ui.init(); 
+    // At this point, the screen shows "BOOTING..." (from the DisplayModule.h we updated)
+
+    // 2. Initialize Camera and capture result
+    // We modify the myCam.init() call to return the status string
+    String camStatus = myCam.init(); 
+    
+    if (camStatus == "OK") {
+        ui.updateMessage("CAMERA: OK", ST77XX_GREEN);
+    } else {
+        ui.updateMessage("CAMERA: ERROR", ST77XX_RED);
+        // We continue anyway, but the error stays on screen
+    }
+
+    delay(500); // Small delay so you can actually read the status
+    ui.updateMessage("WIFI: STARTING...", ST77XX_CYAN);
+
+    // 3. Network Setup
     WiFi.softAP("SafeBaige", "drivesafe");
 
     if (!MDNS.begin("safebaige")) { 
-        Serial.println("Error setting up MDNS responder!");
+        Serial.println("MDNS Error!");
+        ui.updateMessage("MDNS: ERROR", ST77XX_ORANGE);
     } else {
-        Serial.println("mDNS responder started: http://safebaige.local");
-        // Add service to MDNS for HTTP on port 81
+        Serial.println("mDNS started: http://safebaige.local");
         MDNS.addService("http", "tcp", 81);
+        ui.updateMessage("SYSTEM: READY", ST77XX_GREEN);
     }
 
-    // 3. Start the Library service
+    // 4. Start the Video Stream
     startCameraServer();
     Serial.println("Safebaige Modular Boot Complete");
 }
 
 void loop() {
-  delay(1000);
+    // You can add a check here to update the UI if the stream is active
+    delay(1000);
 }

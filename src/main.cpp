@@ -69,9 +69,15 @@ void loop() {
     int newTargets = RadarParser::parse(Serial1, activeTargets, 5);
 
     if (newTargets > 0) {
-        globalTargetCount = newTargets;
+        if (newTargets > 0) {
+        for (int i = 0; i < newTargets; i++) {
+            // Update the smoothed float value using the raw radar distance
+            activeTargets[i].smoothedDist = distFilter.smooth(i, activeTargets[i].distance);
+        }
+        
         lastValidRadarTime = millis();
-        ui.render(globalTargetCount, activeTargets);
+        ui.render(newTargets, activeTargets);
+    }
     } else {
         if (millis() - lastValidRadarTime > DATA_PERSIST_MS) {
             if (globalTargetCount > 0) {

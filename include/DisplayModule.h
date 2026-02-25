@@ -73,7 +73,7 @@ public:
             int targetX = constrain(centerX + xOffset, 15, 113);
 
             int currentDist = (int)targets[i].distance;
-            int yPos = map(currentDist, (int)cfg_max_dist, 0, roadTopY, roadBottomY);
+            int yPos = map((float)targets[i].smoothedDist, (float)cfg_max_dist, 0.0f, (float)roadTopY, (float)roadBottomY);
 
             int carSize = map(yPos, roadTopY, roadBottomY, 4, 16);
             if (yPos + (carSize/1.5) > footerTopY - 2) {

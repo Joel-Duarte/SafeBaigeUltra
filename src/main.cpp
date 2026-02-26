@@ -16,7 +16,7 @@ uint8_t cfg_min_speed   = 0;//min speed to detect ()
 uint8_t cfg_delay_time  = 0;  // 0 or 1 since safebaige has persistence timeout
 uint8_t cfg_trigger_acc = 1;  // 3/4 Required consecutive detections before reporting
 uint8_t cfg_snr_limit   = 0;   //0 - 255 4 is the default / use 6–10: If radar is giving "ghost" detections
-uint8_t cfg_rapid_threshold = 15;
+uint8_t cfg_rapid_threshold = 15; // speed that cars need to be approaching at to be considered BAD and rendered red
 
 uint32_t cameraTimerMs = 15000;  // ammount of seconds to keep camera alive 
 // --- Hardware & System Configuration ---

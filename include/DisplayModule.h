@@ -1,6 +1,12 @@
 #ifndef DISPLAY_MODULE_H
 #define DISPLAY_MODULE_H
 
+#ifndef USE_DISPLAY
+#define USE_DISPLAY 0
+#endif
+
+#if USE_DISPLAY
+
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
 #include <math.h>
@@ -231,5 +237,22 @@ public:
         previousCount = count;
     }
 };
+
+#else
+
+// Dummy version when display is disabled
+#define ST77XX_CYAN  0
+#define ST77XX_GREEN 0
+#define ST77XX_RED   0
+struct RadarTarget; 
+class DisplayModule {
+public:
+    void init() {}
+    void updateMessage(const char*, uint16_t) {}
+    void render(int, RadarTarget*) {}
+    void redrawBackground() {}
+};
+
+#endif
 
 #endif

@@ -153,23 +153,24 @@ fetch(`/cam?cmd=${type}`).then(()=>{if(type!=='reboot')location.reload();});
 }
 
 function save(){
-const params=new URLSearchParams({
-dist:g('dist'),
-dir:g('dir'),
-speed:g('speed'),
-delay:g('delay'),
-acc:g('acc'),
-snr:g('snr'),
-rapid:g('rapid'),
-camTimer:g('camTimer')
+const params = new URLSearchParams({
+max_distance:g('dist'),
+direction_mode:g('dir'),
+min_speed:g('speed'),
+trigger_delay_ms:g('delay'),
+trigger_acc:g('acc'),
+snr_limit:g('snr'),
+rapid_threshold:g('rapid'),
+camera_timer_ms:g('camTimer')
 });
-fetch('/config?'+params.toString())
-.then(r=>r.text())
-.then(()=>alert('Settings Applied'));
-}
+fetch('/config', {
+    method: 'POST',
+    headers: {'Content-Type':'application/x-www-form-urlencoded'},
+    body: params.toString()
+})
 
 window.onload=function(){
-fetch('/config_json')
+fetch('/config')
 .then(r=>r.json())
 .then(cfg=>{
 s('dist',cfg.dist);
@@ -215,17 +216,20 @@ public:
             request->send(200,"text/html",index_html);
         });
 
-        _server.on("/config_json", HTTP_GET, [](AsyncWebServerRequest *request){
+        _server.on("/config", HTTP_GET, [](AsyncWebServerRequest *request){
             char json[256];
+
             snprintf(json, sizeof(json),
-                "{\"dist\":%u,"
-                "\"dir\":%u,"
-                "\"speed\":%u,"
-                "\"delay\":%u,"
-                "\"acc\":%u,"
-                "\"snr\":%u,"
-                "\"rapid\":%u,"
-                "\"camTimer\":%lu}",
+                "{"
+                "\"max_distance\":%u,"
+                "\"direction_mode\":%u,"
+                "\"min_speed\":%u,"
+                "\"trigger_delay_ms\":%u,"
+                "\"trigger_acc\":%u,"
+                "\"snr_limit\":%u,"
+                "\"rapid_threshold\":%u,"
+                "\"camera_timer_ms\":%lu"
+                "}",
                 cfg_max_dist,
                 cfg_direction,
                 cfg_min_speed,
@@ -262,32 +266,32 @@ public:
             request->send(200,"text/plain","OK");
         });
 
-        _server.on("/config", HTTP_GET, [](AsyncWebServerRequest *request){
+        _server.on("/config", HTTP_POST, [](AsyncWebServerRequest *request){
 
-            if(request->hasParam("dist"))
-                cfg_max_dist = constrain(request->getParam("dist")->value().toInt(),1,100);
-            if(request->hasParam("dir"))
-                cfg_direction = constrain(request->getParam("dir")->value().toInt(),0,2);
-            if(request->hasParam("speed"))
-                cfg_min_speed = constrain(request->getParam("speed")->value().toInt(),0,120);
-            if(request->hasParam("delay"))
-                cfg_delay_time = constrain(request->getParam("delay")->value().toInt(),0,30);
-            if(request->hasParam("acc"))
-                cfg_trigger_acc = constrain(request->getParam("acc")->value().toInt(),1,10);
-            if(request->hasParam("snr"))
-                cfg_snr_limit = constrain(request->getParam("snr")->value().toInt(),0,255);
-            if(request->hasParam("rapid"))
-                cfg_rapid_threshold = constrain(request->getParam("rapid")->value().toInt(),5,150);
-            if(request->hasParam("camTimer"))
+            if(request->hasParam("max_distance", true))
+                cfg_max_dist = constrain(request->getParam("max_distance", true)->value().toInt(),1,100);
+            if(request->hasParam("direction_mode", true))
+                cfg_direction = constrain(request->getParam("direction_mode", true)->value().toInt(),0,2);
+            if(request->hasParam("min_speed", true))
+                cfg_min_speed = constrain(request->getParam("min_speed", true)->value().toInt(),0,120);
+            if(request->hasParam("trigger_delay_ms", true))
+                cfg_delay_time = constrain(request->getParam("trigger_delay_ms", true)->value().toInt(),0,30);
+            if(request->hasParam("trigger_acc", true))
+                cfg_trigger_acc = constrain(request->getParam("trigger_acc", true)->value().toInt(),1,10);
+            if(request->hasParam("snr_limit", true))
+                cfg_snr_limit = constrain(request->getParam("snr_limit", true)->value().toInt(),0,255);
+            if(request->hasParam("rapid_threshold", true))
+                cfg_rapid_threshold = constrain(request->getParam("rapid_threshold", true)->value().toInt(),5,150);
+            if(request->hasParam("camera_timer_ms", true))
                 cameraTimerMs = constrain(
-                    request->getParam("camTimer")->value().toInt(),
-                    3000,     // minimum 3 seconds
-                    60000     // max 60 seconds
-            );
-            //applyRadarSettings();
+                    request->getParam("camera_timer_ms", true)->value().toInt(),
+                    3000,
+                    60000
+                );
+
             radarUpdatePending = true;
-                
-            request->send(200,"text/plain","OK");
+
+            request->send(200, "text/plain", "CONFIG UPDATED");
         });
 
         // --- Debug and Data endpoints remain as they were ---
@@ -339,6 +343,42 @@ public:
             request->send(200, "text/plain", output);
         });
         
+        _server.on("/system", HTTP_GET, [](AsyncWebServerRequest *request){
+            char json[256];
+            snprintf(json, sizeof(json),
+                "{"
+                "\"uptime_ms\":%lu,"
+                "\"heap_free\":%u,"
+                "\"heap_min\":%u,"
+                "\"cpu_freq_mhz\":%u,"
+                "\"temperature_c\":%.2f,"
+                "\"wifi_rssi\":%d,"
+                "\"ip\":\"%s\""
+                "}",
+                millis(),
+                ESP.getFreeHeap(),
+                heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT),
+                getCpuFrequencyMhz(),
+                temperatureRead(),
+                WiFi.RSSI(),
+                WiFi.localIP().toString().c_str()
+            );
+
+            request->send(200, "application/json", json);
+        });
+
+        _server.on("/power", HTTP_GET, [](AsyncWebServerRequest *request){
+            //space to add battery options later
+            char json[128];
+            snprintf(json, sizeof(json),
+                "{"
+                "\"power_source\":\"usb\","
+                "\"voltage_v\":null,"
+                "\"brownout_detected\":false"
+                "}"
+            );
+            request->send(200, "application/json", json);
+        });
 
         _server.begin();
     }

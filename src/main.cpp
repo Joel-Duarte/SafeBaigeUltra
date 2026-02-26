@@ -11,7 +11,7 @@
 #include "RadarConfig.h"
 
 // --- Radar Default Settings ---
-uint8_t cfg_max_dist    = 10; //  1-100 (10 as min is recommended) meters
+uint8_t cfg_max_dist    = 40; //  1-100 (10 as min is recommended) meters
 uint8_t cfg_direction   = 2;   // 0: Away, 1: Approach, 2: Both 
 uint8_t cfg_min_speed   = 0;   //min speed to detect ()
 uint8_t cfg_delay_time  = 0;   // 0 or 1 since safebaige has persistence timeout

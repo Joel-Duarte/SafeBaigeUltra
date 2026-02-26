@@ -9,6 +9,8 @@
 #include "FilterModule.h"
 #include "RadarParser.h"
 #include "RadarConfig.h"
+#include "ConfigManager.h"
+
 // --- Radar Default Settings ---
 uint8_t cfg_max_dist    = 40;//  1-100 (10 as min is recommended) meters
 uint8_t cfg_direction   = 2;// 0: Away, 1: Approach, 2: Both
@@ -50,6 +52,7 @@ NetworkManager network;
 DisplayModule ui;
 Camera myCam;
 SignalFilter distFilter;
+ConfigManager configManager;
 
 void applyRadarSettings() {
     // 1. Send configuration block (Enable -> Set Params -> End)
@@ -101,6 +104,9 @@ void updateCameraPower() {
 void setup() {
     Serial1.begin(115200, SERIAL_8N1, RADAR_TX_PIN, RADAR_RX_PIN);
     delay(500);
+    
+    // overrides config global variables by saved ones (if they exist)
+    configManager.load();
 
     ui.init();
     ui.updateMessage("BOOTING", ST77XX_CYAN);
@@ -138,6 +144,7 @@ void loop() {
         radarUpdatePending = false;
         applyRadarSettings();
         ui.redrawBackground();
+        configManager.save(); // save config to preference works with both radar and global variables since this is called with every change (im pepege)
     }
     // 3. Valid Targets Detected
     if (newTargets > 0) {

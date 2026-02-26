@@ -89,7 +89,7 @@ void loop() {
     if (radarUpdatePending) {
         radarUpdatePending = false;
         applyRadarSettings();
-        ui.drawBackground();
+        ui.redrawBackground();
     }
 
     if (newTargets > 0) {

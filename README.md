@@ -52,7 +52,11 @@ Those can all be changed in the respective files.
 
 ## IoT API Endpoints
 
-Uses ESPmDNS for setting up a multicast DNS (Safebaige.local) | can also connect using the esp ip (usually defaults to 192.168.4.1 / this can also be "found" since it's the given network gateway)
+Uses ESPmDNS for setting up a multicast DNS 
+```
+Safebaige.local
+```
+Can also connect using the esp ip (usually defaults to 192.168.4.1 / this can also be "found" since it's the given network gateway)
 
 ### HTTP Endpoints
 

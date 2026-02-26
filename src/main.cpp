@@ -12,7 +12,7 @@
 
 // --- Radar Default Settings ---
 uint8_t cfg_max_dist    = 10; //  1-100 (10 as min is recommended) meters
-uint8_t cfg_direction   = 1;   // 0: Away, 1: Approach, 2: Both 
+uint8_t cfg_direction   = 2;   // 0: Away, 1: Approach, 2: Both 
 uint8_t cfg_min_speed   = 0;   //min speed to detect ()
 uint8_t cfg_delay_time  = 0;   // 0 or 1 since safebaige has persistence timeout
 uint8_t cfg_trigger_acc = 1;   // 3/4 Required consecutive detections before reporting
@@ -31,9 +31,7 @@ bool debugMode = true;
 int globalTargetCount = 0;
 bool yoloVetoActive = false;
 uint8_t cfg_rapid_threshold = 15;     
-uint32_t cfg_linger_threshold_ms = 3000; 
 unsigned long carFirstDetectedTime = 0;
-bool lingerAlertSent = false;
 bool radarUpdatePending = false;
 uint32_t cameraTimerMs;
 
@@ -118,15 +116,7 @@ void loop() {
     }
 
     if (newTargets > 0) {
-        // --- Linger Logic ---
         if (carFirstDetectedTime == 0) carFirstDetectedTime = millis();
-        
-        uint32_t elapsed = millis() - carFirstDetectedTime;
-        if (elapsed > cfg_linger_threshold_ms && !lingerAlertSent) {
-            Serial.println("ALERT: Car lingering detected!"); 
-            // Trigger your webhook here
-            lingerAlertSent = true;
-        }
 
         globalTargetCount = newTargets;
         lastValidRadarTime = millis();
@@ -156,7 +146,6 @@ void loop() {
                 ui.render(0, nullptr); 
             } else {
                 carFirstDetectedTime = 0;
-                lingerAlertSent = false;
             }
         }
     }

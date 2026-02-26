@@ -203,7 +203,7 @@ public:
             if (y + (h/2) >= footerTopY)
                 y = footerTopY - (h/2) - 1;
 
-            int angleOffset = (int)targets[i].angle - 128;
+            int angleOffset = targets[i].angle;
             int x = map(angleOffset, -30, 30, 20, 108);
 
             uint16_t color =

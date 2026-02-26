@@ -24,7 +24,6 @@ extern uint8_t cfg_delay_time;            // 0–30
 extern uint8_t cfg_trigger_acc;           // 1–10
 extern uint8_t cfg_snr_limit;             // 0–255
 extern uint8_t cfg_rapid_threshold;       // 5–150
-extern uint32_t cfg_linger_threshold_ms;  // 500–10000
 extern bool radarUpdatePending;
 //extern void applyRadarSettings();
 
@@ -135,11 +134,6 @@ button.primary{background:#00cfcf;color:black;border:none;font-weight:bold;margi
 </div>
 
 <div class="row">
-<label>UI Linger (ms)</label>
-<input type="number" id="linger" min="500" max="10000" step="500">
-</div>
-
-<div class="row">
 <label>Camera Sleep Timeout (ms)</label>
 <input type="number" id="camTimer" min="3000" max="60000" step="1000">
 </div>
@@ -167,7 +161,6 @@ delay:g('delay'),
 acc:g('acc'),
 snr:g('snr'),
 rapid:g('rapid'),
-linger:g('linger'),
 camTimer:g('camTimer')
 });
 fetch('/config?'+params.toString())
@@ -186,17 +179,16 @@ s('delay',cfg.delay);
 s('acc',cfg.acc);
 s('snr',cfg.snr);
 s('rapid',cfg.rapid);
-s('linger',cfg.linger);
 s('camTimer',cfg.camTimer);
 });
 }
 // profile presets
 const presets = {
-    city:      {dist:40, speed:0, delay:0, acc:5, snr:6, rapid:15, linger:3000},
-    highway:   {dist:100, speed:10, delay:0, acc:3, snr:4, rapid:20, linger:3000},
-    rain:      {dist:60, speed:5, delay:1, acc:6, snr:10, rapid:15, linger:4000},
-    commuter:  {dist:70, speed:5, delay:0, acc:4, snr:4, rapid:15, linger:3000},
-    performance:{dist:100, speed:0, delay:0, acc:2, snr:4, rapid:25, linger:2500}
+    city:      {dist:40, speed:0, delay:0, acc:5, snr:6, rapid:15},
+    highway:   {dist:100, speed:10, delay:0, acc:3, snr:4, rapid:20},
+    rain:      {dist:60, speed:5, delay:1, acc:6, snr:10, rapid:15},
+    commuter:  {dist:70, speed:5, delay:0, acc:4, snr:4, rapid:15},
+    performance:{dist:100, speed:0, delay:0, acc:2, snr:4, rapid:25}
 };
 
 function applyProfile(p) {
@@ -233,7 +225,6 @@ public:
                 "\"acc\":%u,"
                 "\"snr\":%u,"
                 "\"rapid\":%u,"
-                "\"linger\":%lu,"
                 "\"camTimer\":%lu}",
                 cfg_max_dist,
                 cfg_direction,
@@ -242,7 +233,6 @@ public:
                 cfg_trigger_acc,
                 cfg_snr_limit,
                 cfg_rapid_threshold,
-                cfg_linger_threshold_ms,
                 cameraTimerMs
             );
 
@@ -288,8 +278,6 @@ public:
                 cfg_snr_limit = constrain(request->getParam("snr")->value().toInt(),0,255);
             if(request->hasParam("rapid"))
                 cfg_rapid_threshold = constrain(request->getParam("rapid")->value().toInt(),5,150);
-            if(request->hasParam("linger"))
-                cfg_linger_threshold_ms = constrain(request->getParam("linger")->value().toInt(),500,10000);
             if(request->hasParam("camTimer"))
                 cameraTimerMs = constrain(
                     request->getParam("camTimer")->value().toInt(),

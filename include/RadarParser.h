@@ -40,6 +40,7 @@ public:
                 }
 
                 // Process Payload
+                if (dataLen > 100) return 0; // protect stack
                 uint8_t payload[dataLen];
                 ser.readBytes(payload, dataLen);
                 
@@ -56,26 +57,30 @@ public:
                     *debugLen += 4;
                 }
 
-                // Byte 0 of payload is typically the number of targets
                 int countDetected = payload[0];
+                uint8_t alarmInfo = payload[1];
+
                 int actualToRead = (countDetected > maxTargets) ? maxTargets : countDetected;
 
                 for (int i = 0; i < actualToRead; i++) {
-                    // Offset by 1 (Target Count byte)
-                    int base = 1 + (i * 5); 
-                    
+
+                    int base = 2 + (i * 5); 
+
                     if (base + 4 < dataLen) {
-                        targets[i].distance    = payload[base + 0];
-                        targets[i].angle       = payload[base + 1]; 
-                        
-                        // 0x01 = Approaching, 0x02 = Away, 0x00 = Stationary
-                        uint8_t dirByte        = payload[base + 2];
-                        targets[i].approaching = (dirByte == 0x01); 
-                        
-                        targets[i].speed       = payload[base + 3];
-                        targets[i].snr         = payload[base + 4];
-                        
-                        targets[i].smoothedDist = distFilter.smooth(i, (float)targets[i].distance);
+
+                        uint8_t rawAngle = payload[base + 0];
+                        targets[i].angle = (int)rawAngle - 0x80;  // convert to signed degrees
+
+                        targets[i].distance = payload[base + 1];
+
+                        uint8_t dirByte = payload[base + 2];
+                        targets[i].approaching = (dirByte == 0x00);  // 00 = approaching
+
+                        targets[i].speed = payload[base + 3];
+                        targets[i].snr   = payload[base + 4];
+
+                        targets[i].smoothedDist =
+                            distFilter.smooth(i, (float)targets[i].distance);
                     }
                 }
 

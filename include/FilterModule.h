@@ -11,7 +11,6 @@ public:
         for(int i = 0; i < 5; i++) _values[i] = -1.0f; 
     }
 
-    // Renamed to 'update' to fix the compiler error
     float smooth(int index, float raw) {
         // If it's a new target, snap immediately to the value
         if (_values[index] < 0) {

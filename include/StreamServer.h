@@ -2,6 +2,8 @@
 #define STREAM_SERVER_H
 
 void startCameraServer();
-void stopCameraServer();
+void enterLowPowerMode();
+void exitLowPowerMode();
+bool isLowPower();
 
 #endif

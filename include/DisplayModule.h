@@ -1,8 +1,15 @@
 #ifndef DISPLAY_MODULE_H
 #define DISPLAY_MODULE_H
 
+#ifndef USE_DISPLAY
+#define USE_DISPLAY 0
+#endif
+
+#if USE_DISPLAY
+
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
+#include <math.h>
 #include "LD2451_Defines.h"
 
 #define TFT_SCL    38
@@ -12,117 +19,240 @@
 #define TFT_CS     42
 
 extern uint8_t cfg_max_dist;
+extern uint8_t cfg_rapid_threshold;
 
 class DisplayModule {
 private:
     Adafruit_ST7735 _display = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_SDA, TFT_SCL, TFT_RST);
-    
-    // UI Boundary Constants
-    const int roadTopY = 10;      
-    const int roadBottomY = 130;  
-    const int footerTopY = 134; 
+
+    const int roadTopY = 10;
+    const int roadBottomY = 130;
+    const int footerTopY = 134;
     const int centerX = 64;
 
+    RadarTarget previousTargets[5];
+    int previousCount = 0;
+
+    struct CarRect {
+        int x;
+        int y;
+        int w;
+        int h;
+    };
+
+    CarRect previousRects[5];
+
+    // -------------------------
+    // Smooth Perspective Mapping (vertical only)
+    // -------------------------
+    int distanceToY(float d) {
+
+        float visualMax = (float)cfg_max_dist;
+        if (d > visualMax) d = visualMax;
+
+        float normalized = d / visualMax;
+
+        float exponent = 1.0f + 1.2f * pow(visualMax / 100.0f, 0.7f);
+        if (exponent > 2.2f) exponent = 2.2f;
+
+        float curved = 1.0f - pow(1.0f - normalized, exponent);
+
+        return roadTopY + (roadBottomY - roadTopY) * (1.0f - curved);
+    }
+
+    // -------------------------
+    // Smart Scale Drawing
+    // -------------------------
     void drawScale() {
-        _display.setTextColor(0x528A); 
+
+        _display.setTextColor(0x528A);
         _display.setTextSize(1);
 
-        int max_d = (cfg_max_dist < 1) ? 1 : cfg_max_dist;
-        int step = (max_d <= 10) ? 2 : 5;
+        int visualMax = cfg_max_dist;
 
-        for (int m = step; m <= max_d; m += step) {
-            int y = map(m, max_d, 0, roadTopY, roadBottomY);
-            
-            for(int x = 30; x < 100; x += 10) {
-                _display.drawFastHLine(x, y, 4, 0x2104); 
-            }
-            
-            _display.setCursor(2, y - 3);
+        // 5m increments to 20
+        for (int m = 5; m <= 20; m += 5) {
+
+            if (m > visualMax) break;
+
+            int y = distanceToY(m);
+
+            for (int x = 30; x < 100; x += 12)
+                _display.drawFastHLine(x, y, 4, 0x2104);
+
+            _display.setCursor(5, y - 3);
             _display.print(m);
+            _display.print("m");
+        }
+
+        // 10m increments to 50
+        for (int m = 30; m <= 50; m += 10) {
+
+            if (m > visualMax) break;
+
+            int y = distanceToY(m);
+
+            for (int x = 30; x < 100; x += 12)
+                _display.drawFastHLine(x, y, 4, 0x2104);
+
+            _display.setCursor(5, y - 3);
+            _display.print(m);
+            _display.print("m");
+        }
+
+        // Only draw max above 50
+        if (visualMax > 50) {
+
+            int y = distanceToY(visualMax);
+
+            for (int x = 30; x < 100; x += 12)
+                _display.drawFastHLine(x, y, 4, 0x2104);
+
+            _display.setCursor(5, y - 3);
+            _display.print(visualMax);
             _display.print("m");
         }
     }
 
     void drawRoad() {
-        // Perspective Road Lines
-        _display.drawLine(centerX - 15, roadTopY, centerX - 50, roadBottomY, 0x528A); 
-        _display.drawLine(centerX + 15, roadTopY, centerX + 50, roadBottomY, 0x528A); 
+
+        int horizonWidth = 12;
+        int bottomWidth = 50;
+
+        _display.drawLine(centerX - horizonWidth, roadTopY,centerX - bottomWidth, roadBottomY, 0x528A);
+
+        _display.drawLine(centerX + horizonWidth, roadTopY,centerX + bottomWidth, roadBottomY, 0x528A);
+    }
+
+    void drawBackground() {
+        _display.fillRect(0, 0, 128, footerTopY, ST77XX_BLACK);
+        drawRoad();
+        drawScale();
+    }
+
+    // -------------------------
+    // Clean erase using stored rectangles
+    // -------------------------
+    void erasePreviousCars() {
+
+        for (int i = 0; i < previousCount; i++) {
+
+            CarRect r = previousRects[i];
+
+            _display.fillRect(
+                r.x - 2,
+                r.y - 2,
+                r.w + 4,
+                r.h + 4,
+                ST77XX_BLACK
+            );
+        }
+        
+        previousCount = 0;
     }
 
 public:
     DisplayModule() {}
 
     void init() {
-        _display.initR(INITR_BLACKTAB); 
-        _display.setRotation(0); 
-        _display.fillScreen(ST77XX_BLACK);
-        drawStaticUI();
-    }
 
-    void drawStaticUI() {
-        // Clear footer area specifically
-        _display.fillRect(0, footerTopY, 128, 160 - footerTopY, 0x10A2); 
-        _display.drawFastHLine(0, footerTopY, 128, ST7735_CYAN); 
+        pinMode(TFT_RST, OUTPUT);
+        digitalWrite(TFT_RST, HIGH); delay(10);
+        digitalWrite(TFT_RST, LOW);  delay(10);
+        digitalWrite(TFT_RST, HIGH); delay(10);
+
+        _display.initR(INITR_BLACKTAB);
+        _display.setRotation(0);
+        _display.fillScreen(ST77XX_BLACK);
+
+        // Footer
+        _display.fillRect(0, footerTopY, 128, 160 - footerTopY, 0x10A2);
+        _display.drawFastHLine(0, footerTopY, 128, ST7735_CYAN);
 
         _display.setCursor(5, 145);
         _display.setTextColor(ST77XX_WHITE);
         _display.setTextSize(1);
         _display.print("SAFEBAIGE");
+
+        drawBackground();
+    }
+
+    void redrawBackground() {
+        drawBackground();
     }
 
     void updateMessage(String msg, uint16_t color = ST77XX_WHITE) {
-        // Clear only the message area within the footer
-        _display.fillRect(75, 145, 50, 12, 0x10A2); 
-        _display.setCursor(75, 145);
+
+        _display.fillRect(80, 145, 45, 12, 0x10A2);
+
+        _display.setCursor(80, 145);
+        _display.setTextSize(1);
         _display.setTextColor(color);
-        _display.print(msg); 
+        _display.print(msg);
     }
 
     void render(int count, RadarTarget *targets) {
-        // 1. Wipe ONLY the road area to eliminate artifacts
-        _display.fillRect(0, 0, 128, footerTopY, ST77XX_BLACK);
-        
-        // 2. Redraw structural elements
-        drawRoad();
-        drawScale();
 
-        if (count <= 0 || targets == nullptr) return;
+        erasePreviousCars();
 
-        // Ensure max_d isn't zero for math
-        float max_d = (float)((cfg_max_dist < 1) ? 1 : cfg_max_dist);
+        if (count <= 0 || targets == nullptr)
+            return;
 
         for (int i = 0; i < count; i++) {
-            // Horizontal Logic
-            int angleOffset = (int)targets[i].angle - 128; 
-            int x_pos = map(angleOffset, -30, 30, 20, 108);
 
-            // Vertical Logic
             float d = targets[i].smoothedDist;
-            if (d > max_d) d = max_d;
-            if (d < 0) d = 0;
-            
-            int y_pos = map(d, max_d, 0.0f, (float)roadTopY, (float)roadBottomY);
+            int y = distanceToY(d);
 
-            // Perspective Scaling
-            int carWidth = map(y_pos, roadTopY, roadBottomY, 6, 20);
-            int carHeight = carWidth / 2;
+            int w = map(y, roadTopY, roadBottomY, 6, 22);
+            int h = w / 2;
 
-            // Clamping to prevent footer/header artifacts
-            if (y_pos + (carHeight / 2) >= footerTopY) y_pos = footerTopY - (carHeight / 2) - 1;
-            if (y_pos - (carHeight / 2) <= roadTopY) y_pos = roadTopY + (carHeight / 2) + 1;
+            if (y + (h/2) >= footerTopY)
+                y = footerTopY - (h/2) - 1;
 
-            uint16_t color = targets[i].approaching ? ST77XX_RED : ST77XX_GREEN;
+            int angleOffset = targets[i].angle;
+            int x = map(angleOffset, -30, 30, 20, 108);
 
-            _display.fillRoundRect(x_pos - (carWidth/2), y_pos - (carHeight/2), carWidth, carHeight, 2, color);
-            
-            // Minimal speed label to reduce flicker
-            if (y_pos > roadTopY + 15) {
-                _display.setTextColor(ST77XX_WHITE);
-                _display.setCursor(x_pos - 8, y_pos - (carHeight / 2) - 8);
-                _display.print((int)targets[i].speed);
-            }
+            uint16_t color =
+                (targets[i].approaching && targets[i].speed > cfg_rapid_threshold)
+                ? ST77XX_RED
+                : (targets[i].approaching ? ST77XX_ORANGE : ST77XX_GREEN);
+
+            int drawX = x - (w/2);
+            int drawY = y - (h/2);
+
+            _display.fillRoundRect(
+                drawX,
+                drawY,
+                w,
+                h,
+                3,
+                color
+            );
+
+            // Store exact rectangle for next erase
+            previousRects[i] = { drawX, drawY, w, h };
+            previousTargets[i] = targets[i];
         }
+
+        previousCount = count;
     }
 };
+
+#else
+
+// Dummy version when display is disabled
+#define ST77XX_CYAN  0
+#define ST77XX_GREEN 0
+#define ST77XX_RED   0
+struct RadarTarget; 
+class DisplayModule {
+public:
+    void init() {}
+    void updateMessage(const char*, uint16_t) {}
+    void render(int, RadarTarget*) {}
+    void redrawBackground() {}
+};
+
+#endif
 
 #endif

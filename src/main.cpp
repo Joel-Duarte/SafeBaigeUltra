@@ -34,6 +34,7 @@ uint32_t cfg_linger_threshold_ms = 3000;
 unsigned long carFirstDetectedTime = 0;
 bool lingerAlertSent = false;
 bool radarUpdatePending = false;
+const int CAMERA_TIMER_MS = 10000; // ammount of seconds to keep camera alive 
 
 // --- Module Instances ---
 NetworkManager network;
@@ -52,6 +53,29 @@ void applyRadarSettings() {
     uint8_t startCmd[] = {0xFD, 0xFC, 0xFB, 0xFA, 0x04, 0x00, 0x62, 0x00, 0x04, 0x03, 0x02, 0x01};
     Serial1.write(startCmd, sizeof(startCmd));
     Serial1.flush();
+}
+
+void updateCameraPower()
+{
+    static bool cameraSleeping = false;  
+    unsigned long now = millis();
+
+    if (now - lastValidRadarTime > CAMERA_TIMER_MS)
+    {
+        if (!cameraSleeping)
+        {
+            enterLowPowerMode();   
+            cameraSleeping = true;
+        }
+    }
+    else
+    {
+        if (cameraSleeping)
+        {
+            exitLowPowerMode();  
+            cameraSleeping = false;
+        }
+    }
 }
 
 void setup() {
@@ -132,6 +156,7 @@ void loop() {
             }
         }
     }
-    
+
+    updateCameraPower();
     delay(5);
 }

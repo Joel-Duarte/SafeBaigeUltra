@@ -168,3 +168,8 @@ Served at:
 http://safebaige.local:81/stream
 ```
 
+## Picture
+
+![Breadboard](https://github.com/user-attachments/assets/50867f1b-ba12-4a0e-b5be-7c4235f75325)
+
+

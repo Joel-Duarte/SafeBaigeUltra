@@ -42,14 +42,14 @@ private:
     int distanceToY(float d) {
 
         float visualMax = (float)cfg_max_dist;
-
-        if (d > visualMax)
-            d = visualMax;
+        if (d > visualMax) d = visualMax;
 
         float normalized = d / visualMax;
 
-        // Smooth curve for near emphasis
-        float curved = 1.0f - pow(1.0f - normalized, 2.2f);
+        float exponent = 1.0f + 1.2f * pow(visualMax / 100.0f, 0.7f);
+        if (exponent > 2.2f) exponent = 2.2f;
+
+        float curved = 1.0f - pow(1.0f - normalized, exponent);
 
         return roadTopY + (roadBottomY - roadTopY) * (1.0f - curved);
     }

@@ -218,7 +218,7 @@ void loop() {
     }
 
     updateCameraPower();
-    network.cleanupWS();
-
+    //network.cleanupWS();
+    network.handleHeartbeat();
     delay(5);
 }

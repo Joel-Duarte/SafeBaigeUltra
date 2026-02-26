@@ -32,7 +32,8 @@ class NetworkManager {
 private:
     AsyncWebServer _server;
     AsyncWebSocket _ws;
-
+    unsigned long _lastHeartbeat = 0;
+    static const unsigned long HEARTBEAT_INTERVAL = 5000;
     // Fixed JSON buffer (no heap fragmentation)
     char radarJson[1024];
 
@@ -40,21 +41,21 @@ public:
     NetworkManager() 
         : _server(80),
           _ws("/ws") {}
-
+    
     // --------------------------------------------------------
     void init() {
         WiFi.softAP("SafeBaige","drivesafe");
 
         // ------------------ WebSocket ------------------
-        _ws.onEvent([this](AsyncWebSocket * server,AsyncWebSocketClient * client,AwsEventType type,void * arg,uint8_t *data,size_t len){
-
-            if(type == WS_EVT_CONNECT) {
-                Serial.println("WS Client connected");
+            _ws.onEvent([this](AsyncWebSocket *server,AsyncWebSocketClient *client,AwsEventType type,void *arg,uint8_t *data,size_t len) {
+                if (type == WS_EVT_CONNECT) {
+                    Serial.printf("WS client #%u connected\n", client->id());
+                }
+                if (type == WS_EVT_DISCONNECT) {
+                    Serial.printf("WS client #%u disconnected\n", client->id());
+                }
             }
-            else if(type == WS_EVT_DISCONNECT) {
-                Serial.println("WS Client disconnected");
-            }
-        });
+        );
 
         _server.addHandler(&_ws);
 
@@ -164,9 +165,20 @@ public:
         _server.begin();
     }
 
+
+    void handleHeartbeat() {
+        if (!_ws.count()) return;
+        unsigned long now = millis();
+        if (now - _lastHeartbeat >= HEARTBEAT_INTERVAL) {
+            _ws.pingAll();  
+            _lastHeartbeat = now;
+        }
+    }
+
     // --------------------------------------------------------
     // ONLY call when radar data changes
     // --------------------------------------------------------
+
     void sendRadarUpdate() {
         if(!_ws.count()) return;
         int offset = snprintf(

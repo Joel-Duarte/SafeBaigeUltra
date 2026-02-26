@@ -7,7 +7,7 @@ The system keeps the Garmin Varia-inspired radar tracking concept, while extendi
 
 ## System Architecture
 
-- **Radar Core**: Interfaces with a real HLK-LD2451 mmWave radar module over UART (115200 baud)
+- **Radar Core**: Interfaces with a real HLK-LD2451 mmWave radar module ([documentation](https://www.hlktech.net/index.php?id=1282)) over UART (115200 baud)
 - **Embedded Controller**: Runs on a ESP32-S3 using Arduino framework under PlatformIO.
 - **Headless Design**: Display support is optional and compile-time controlled. In headless mode, the ESP focuses purely on sensing and data streaming.
 - **Camera**: ESP32 camera for onboard capture and streaming for external validation logic.

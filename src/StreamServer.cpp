@@ -43,6 +43,9 @@ static esp_err_t stream_handler(httpd_req_t *req)
     res = httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
     if (res != ESP_OK) return res;
 
+    res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
+    if (res != ESP_OK) return res;
+
     unsigned long lastLowPowerFrame = 0;
 
     while (true)

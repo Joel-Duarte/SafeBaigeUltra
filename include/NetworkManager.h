@@ -5,6 +5,7 @@
 #include <ESPAsyncWebServer.h>
 #include "esp_camera.h" 
 #include "LD2451_Defines.h"
+#include "StreamServer.h"
 
 // --- Variables from main.cpp ---
 extern bool yoloVetoActive;
@@ -13,7 +14,8 @@ extern RadarTarget activeTargets[];
 extern bool debugMode;
 extern int rawDebugLen;
 extern uint8_t rawDebugBuffer[];
-
+extern unsigned long lastValidRadarTime;
+extern uint32_t cameraTimerMs;
 // Radar Configuration Globals
 extern uint8_t cfg_max_dist;              // 1–100
 extern uint8_t cfg_direction;             // 0–2
@@ -64,6 +66,12 @@ button.primary{background:#00cfcf;color:black;border:none;font-weight:bold;margi
 <div class="btn-group">
 <button onclick="cmd('flip')">Vertical Flip</button>
 <button onclick="cmd('mirror')">Horizontal Mirror</button>
+</div>
+
+<div class="btn-group">
+<button style="background:#00cfcf;color:black;font-weight:bold;"
+        onclick="cmd('wake')">Wake Camera</button>
+</div>
 </div>
 </div>
 
@@ -131,6 +139,11 @@ button.primary{background:#00cfcf;color:black;border:none;font-weight:bold;margi
 <input type="number" id="linger" min="500" max="10000" step="500">
 </div>
 
+<div class="row">
+<label>Camera Sleep Timeout (ms)</label>
+<input type="number" id="camTimer" min="3000" max="60000" step="1000">
+</div>
+
 <button class="primary" onclick="save()">SAVE ALL CONFIGS</button>
 <button style="margin-top:10px;font-size:0.8em;" onclick="cmd('reboot')">Reboot Device</button>
 </div>
@@ -154,7 +167,8 @@ delay:g('delay'),
 acc:g('acc'),
 snr:g('snr'),
 rapid:g('rapid'),
-linger:g('linger')
+linger:g('linger'),
+camTimer:g('camTimer')
 });
 fetch('/config?'+params.toString())
 .then(r=>r.text())
@@ -173,6 +187,7 @@ s('acc',cfg.acc);
 s('snr',cfg.snr);
 s('rapid',cfg.rapid);
 s('linger',cfg.linger);
+s('camTimer',cfg.camTimer);
 });
 }
 // profile presets
@@ -218,7 +233,8 @@ public:
                 "\"acc\":%u,"
                 "\"snr\":%u,"
                 "\"rapid\":%u,"
-                "\"linger\":%lu}",
+                "\"linger\":%lu,"
+                "\"camTimer\":%lu}",
                 cfg_max_dist,
                 cfg_direction,
                 cfg_min_speed,
@@ -226,20 +242,33 @@ public:
                 cfg_trigger_acc,
                 cfg_snr_limit,
                 cfg_rapid_threshold,
-                cfg_linger_threshold_ms
+                cfg_linger_threshold_ms,
+                cameraTimerMs
             );
 
             request->send(200, "application/json", json);
         });
 
         _server.on("/cam", HTTP_GET, [](AsyncWebServerRequest *request){
-            sensor_t * s = esp_camera_sensor_get();
             if(request->hasParam("cmd")){
-                String cmd=request->getParam("cmd")->value();
-                if(cmd=="flip") s->set_vflip(s,!s->status.vflip);
-                if(cmd=="mirror") s->set_hmirror(s,!s->status.hmirror);
-                if(cmd=="reboot") ESP.restart();
+                String cmd = request->getParam("cmd")->value();
+                if(cmd == "flip") {
+                    sensor_t * s = esp_camera_sensor_get();
+                    s->set_vflip(s, !s->status.vflip);
+                }
+                else if(cmd == "mirror") {
+                    sensor_t * s = esp_camera_sensor_get();
+                    s->set_hmirror(s, !s->status.hmirror);
+                }
+                else if(cmd == "wake") {
+                    exitLowPowerMode();
+                    lastValidRadarTime = millis(); 
+                }
+                else if(cmd == "reboot") {
+                    ESP.restart();
+                }
             }
+
             request->send(200,"text/plain","OK");
         });
 
@@ -247,28 +276,26 @@ public:
 
             if(request->hasParam("dist"))
                 cfg_max_dist = constrain(request->getParam("dist")->value().toInt(),1,100);
-
             if(request->hasParam("dir"))
                 cfg_direction = constrain(request->getParam("dir")->value().toInt(),0,2);
-
             if(request->hasParam("speed"))
                 cfg_min_speed = constrain(request->getParam("speed")->value().toInt(),0,120);
-
             if(request->hasParam("delay"))
                 cfg_delay_time = constrain(request->getParam("delay")->value().toInt(),0,30);
-
             if(request->hasParam("acc"))
                 cfg_trigger_acc = constrain(request->getParam("acc")->value().toInt(),1,10);
-
             if(request->hasParam("snr"))
                 cfg_snr_limit = constrain(request->getParam("snr")->value().toInt(),0,255);
-
             if(request->hasParam("rapid"))
                 cfg_rapid_threshold = constrain(request->getParam("rapid")->value().toInt(),5,150);
-
             if(request->hasParam("linger"))
                 cfg_linger_threshold_ms = constrain(request->getParam("linger")->value().toInt(),500,10000);
-
+            if(request->hasParam("camTimer"))
+                cameraTimerMs = constrain(
+                    request->getParam("camTimer")->value().toInt(),
+                    3000,     // minimum 3 seconds
+                    60000     // max 60 seconds
+            );
             //applyRadarSettings();
             radarUpdatePending = true;
                 
@@ -323,6 +350,7 @@ public:
             
             request->send(200, "text/plain", output);
         });
+        
 
         _server.begin();
     }

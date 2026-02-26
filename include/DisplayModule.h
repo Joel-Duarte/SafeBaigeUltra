@@ -113,11 +113,9 @@ private:
         int horizonWidth = 12;
         int bottomWidth = 50;
 
-        _display.drawLine(centerX - horizonWidth, roadTopY,
-                          centerX - bottomWidth, roadBottomY, 0x528A);
+        _display.drawLine(centerX - horizonWidth, roadTopY,centerX - bottomWidth, roadBottomY, 0x528A);
 
-        _display.drawLine(centerX + horizonWidth, roadTopY,
-                          centerX + bottomWidth, roadBottomY, 0x528A);
+        _display.drawLine(centerX + horizonWidth, roadTopY,centerX + bottomWidth, roadBottomY, 0x528A);
     }
 
     void drawBackground() {
@@ -143,7 +141,7 @@ private:
                 ST77XX_BLACK
             );
         }
-
+        
         previousCount = 0;
     }
 

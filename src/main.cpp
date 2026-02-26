@@ -17,6 +17,7 @@ uint8_t cfg_min_speed   = 0;   //min speed to detect ()
 uint8_t cfg_delay_time  = 0;   // 0 or 1 since safebaige has persistence timeout
 uint8_t cfg_trigger_acc = 1;   // 3/4 Required consecutive detections before reporting
 uint8_t cfg_snr_limit   = 0;   //0 - 255 4 is the default / use 6–10: If radar is giving "ghost" detections
+uint32_t CAMERA_TIMER_MS = 15000; // ammount of seconds to keep camera alive 
 
 // --- Hardware & System Configuration ---
 const int RADAR_TX_PIN = 1; 
@@ -34,7 +35,7 @@ uint32_t cfg_linger_threshold_ms = 3000;
 unsigned long carFirstDetectedTime = 0;
 bool lingerAlertSent = false;
 bool radarUpdatePending = false;
-const int CAMERA_TIMER_MS = 10000; // ammount of seconds to keep camera alive 
+uint32_t cameraTimerMs;
 
 // --- Module Instances ---
 NetworkManager network;
@@ -60,7 +61,7 @@ void updateCameraPower()
     static bool cameraSleeping = false;  
     unsigned long now = millis();
 
-    if (now - lastValidRadarTime > CAMERA_TIMER_MS)
+    if (now - lastValidRadarTime > cameraTimerMs)
     {
         if (!cameraSleeping)
         {
@@ -129,6 +130,9 @@ void loop() {
 
         globalTargetCount = newTargets;
         lastValidRadarTime = millis();
+        if (isLowPower()) {
+            exitLowPowerMode();
+        }
         // Update smoothing filters and render UI
         for (int i = 0; i < newTargets; i++) {
             activeTargets[i].smoothedDist = distFilter.smooth(i, (float)activeTargets[i].distance);

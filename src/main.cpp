@@ -10,6 +10,10 @@
 #include "RadarParser.h"
 #include "RadarConfig.h"
 #include "ConfigManager.h"
+#include "LedManager.h"
+#define sensor_t adafruit_sensor_t
+#include "MPUManager.h"
+#undef sensor_t
 
 // --- Radar Default Settings ---
 uint8_t cfg_max_dist    = 40;//  1-100 (10 as min is recommended) meters
@@ -53,6 +57,8 @@ DisplayModule ui;
 Camera myCam;
 SignalFilter distFilter;
 ConfigManager configManager;
+LedManager leds(16);
+MPUManager imu;
 
 void applyRadarSettings() {
     // 1. Send configuration block (Enable -> Set Params -> End)
@@ -110,6 +116,7 @@ void setup() {
 
     ui.init();
     ui.updateMessage("BOOTING", ST77XX_CYAN);
+    leds.begin();
 
     applyRadarSettings();
 
@@ -120,8 +127,10 @@ void setup() {
     if (MDNS.begin("safebaige")) {
         MDNS.addService("http", "tcp", 80);
         ui.updateMessage("READY", ST77XX_GREEN);
+        leds.playBootSequence();
     } else {
         ui.updateMessage("MDNS:ERR", ST77XX_RED);
+        leds.playErrorSequence();
     }
     lastValidRadarTime = millis();
 }
@@ -224,6 +233,9 @@ void loop() {
         }
     }
 
+    bool braking = imu.isBraking();
+    leds.updateBraking(braking);
+    
     updateCameraPower();
     //network.cleanupWS();
     network.handleHeartbeat();
